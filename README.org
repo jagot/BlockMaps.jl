@@ -1,0 +1,101 @@
+#+TITLE: BlockMaps
+#+AUTHOR: Stefanos Carlström
+#+EMAIL: stefanos.carlstrom@gmail.com
+
+[[https://jagot.github.io/BlockMaps.jl/stable][https://img.shields.io/badge/docs-stable-blue.svg]]
+[[https://jagot.github.io/BlockMaps.jl/dev][https://img.shields.io/badge/docs-dev-blue.svg]]
+[[https://travis-ci.com/jagot/BlockMaps.jl][https://travis-ci.com/jagot/BlockMaps.jl.svg?branch=master]]
+[[https://ci.appveyor.com/project/jagot/BlockMaps-jl][https://ci.appveyor.com/api/projects/status/github/jagot/BlockMaps.jl?svg=true]]
+[[https://codecov.io/gh/jagot/BlockMaps.jl][https://codecov.io/gh/jagot/BlockMaps.jl/branch/master/graph/badge.svg]]
+
+This package is similar to [[https://github.com/JuliaMatrices/BlockBandedMatrices.jl][BlockBandedMatrices.jl]] in that it provides
+a way of representing blocked matrices where the block distribution
+has some structure (i.e. the matrices are not block-dense). Both
+BlockBandedmatrices.jl and BlockMaps.jl are based on [[https://github.com/JuliaArrays/BlockArrays.jl][BlockArrays.jl]].
+
+Whereas BlockBandedMatrices.jl provides block-bands, BlockMaps.jl
+supports any block structure representable by a matrix. In addition,
+the blocks themselves need not be matrices, but any linear operator,
+most notably those from [[https://github.com/Jutho/LinearMaps.jl][LinearMaps.jl]].
+
+* Example
+  #+BEGIN_SRC julia
+    using BlockMaps
+    using LinearAlgebra
+    using LinearMaps
+
+    n = 6 # Block size
+    m = 4 # Number of blocks
+    rows = repeat([n], m)
+
+    T = Int
+
+    D = Diagonal(3ones(T, n))
+    U = UpperTriangular(reshape(one(T):n^2, n, n))
+    L = LowerTriangular(reshape(one(T):n^2, n, n))
+
+    a = one(T):n
+    function kernel(y,x)
+        for i = 1:n
+            y[i] = a[i]*dot(a,x)
+        end
+        y
+    end
+
+    Kmap = LinearMap{T}(kernel, n, n)
+    Dmap = LinearMap(D)
+    Umap = LinearMap(U)
+    Lmap = LinearMap(L)
+
+    A = SparseBlockMap(LinearMap{T}, rows, rows)
+    A[Block(1,1)] = Bmap
+    A[Block(2,3)] = Dmap
+    A[Block(3,4)] = Umap
+    A[Block(4,2)] = Lmap
+    display(A)
+  #+END_SRC
+
+  #+BEGIN_EXAMPLE
+    4×4-blocked 24×24 BlockMap{Int64,2,LinearMap{Int64},SparseMatrixCSC{LinearMap{Int64},Int64},BlockArrays.BlockSizes{2,Tuple{Array{Int64,1},Array{Int64,1}}}}:
+     1   2   3   4   5   6  │  ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅  ⋅  ⋅  ⋅  ⋅  ⋅  │  ⋅  ⋅   ⋅   ⋅   ⋅   ⋅
+     2   4   6   8  10  12  │  ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅  ⋅  ⋅  ⋅  ⋅  ⋅  │  ⋅  ⋅   ⋅   ⋅   ⋅   ⋅
+     3   6   9  12  15  18  │  ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅  ⋅  ⋅  ⋅  ⋅  ⋅  │  ⋅  ⋅   ⋅   ⋅   ⋅   ⋅
+     4   8  12  16  20  24  │  ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅  ⋅  ⋅  ⋅  ⋅  ⋅  │  ⋅  ⋅   ⋅   ⋅   ⋅   ⋅
+     5  10  15  20  25  30  │  ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅  ⋅  ⋅  ⋅  ⋅  ⋅  │  ⋅  ⋅   ⋅   ⋅   ⋅   ⋅
+     6  12  18  24  30  36  │  ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅  ⋅  ⋅  ⋅  ⋅  ⋅  │  ⋅  ⋅   ⋅   ⋅   ⋅   ⋅
+     ───────────────────────┼─────────────────────────┼────────────────────┼──────────────────────
+     ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  3  ⋅  ⋅  ⋅  ⋅  ⋅  │  ⋅  ⋅   ⋅   ⋅   ⋅   ⋅
+     ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅  3  ⋅  ⋅  ⋅  ⋅  │  ⋅  ⋅   ⋅   ⋅   ⋅   ⋅
+     ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅  ⋅  3  ⋅  ⋅  ⋅  │  ⋅  ⋅   ⋅   ⋅   ⋅   ⋅
+     ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅  ⋅  ⋅  3  ⋅  ⋅  │  ⋅  ⋅   ⋅   ⋅   ⋅   ⋅
+     ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅  ⋅  ⋅  ⋅  3  ⋅  │  ⋅  ⋅   ⋅   ⋅   ⋅   ⋅
+     ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅  ⋅  ⋅  ⋅  ⋅  3  │  ⋅  ⋅   ⋅   ⋅   ⋅   ⋅
+     ───────────────────────┼─────────────────────────┼────────────────────┼──────────────────────
+     ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅  ⋅  ⋅  ⋅  ⋅  ⋅  │  1  7  13  19  25  31
+     ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅  ⋅  ⋅  ⋅  ⋅  ⋅  │  ⋅  8  14  20  26  32
+     ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅  ⋅  ⋅  ⋅  ⋅  ⋅  │  ⋅  ⋅  15  21  27  33
+     ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅  ⋅  ⋅  ⋅  ⋅  ⋅  │  ⋅  ⋅   ⋅  22  28  34
+     ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅  ⋅  ⋅  ⋅  ⋅  ⋅  │  ⋅  ⋅   ⋅   ⋅  29  35
+     ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅  ⋅  ⋅  ⋅  ⋅  ⋅  │  ⋅  ⋅   ⋅   ⋅   ⋅  36
+     ───────────────────────┼─────────────────────────┼────────────────────┼──────────────────────
+     ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  1   ⋅   ⋅   ⋅   ⋅   ⋅  │  ⋅  ⋅  ⋅  ⋅  ⋅  ⋅  │  ⋅  ⋅   ⋅   ⋅   ⋅   ⋅
+     ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  2   8   ⋅   ⋅   ⋅   ⋅  │  ⋅  ⋅  ⋅  ⋅  ⋅  ⋅  │  ⋅  ⋅   ⋅   ⋅   ⋅   ⋅
+     ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  3   9  15   ⋅   ⋅   ⋅  │  ⋅  ⋅  ⋅  ⋅  ⋅  ⋅  │  ⋅  ⋅   ⋅   ⋅   ⋅   ⋅
+     ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  4  10  16  22   ⋅   ⋅  │  ⋅  ⋅  ⋅  ⋅  ⋅  ⋅  │  ⋅  ⋅   ⋅   ⋅   ⋅   ⋅
+     ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  5  11  17  23  29   ⋅  │  ⋅  ⋅  ⋅  ⋅  ⋅  ⋅  │  ⋅  ⋅   ⋅   ⋅   ⋅   ⋅
+     ⋅   ⋅   ⋅   ⋅   ⋅   ⋅  │  6  12  18  24  30  36  │  ⋅  ⋅  ⋅  ⋅  ⋅  ⋅  │  ⋅  ⋅   ⋅   ⋅   ⋅   ⋅
+  #+END_EXAMPLE
+
+  A simple overview of the block structure is given by
+
+
+  #+BEGIN_SRC julia
+    BlockMaps.block_spy(A)
+  #+END_SRC
+
+  #+BEGIN_EXAMPLE
+     ■ ⋅ ⋅ ⋅
+     ⋅ ⋅ ⟍ ⋅
+     ⋅ ⋅ ⋅ ◥
+     ⋅ ◣ ⋅ ⋅
+  #+END_EXAMPLE

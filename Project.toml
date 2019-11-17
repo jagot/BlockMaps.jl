@@ -3,6 +3,14 @@ uuid = "c7e5dfd0-7f5e-4127-b3f7-09f7c2baa17e"
 authors = ["Stefanos Carlström <stefanos.carlstrom@gmail.com>"]
 version = "0.1.0"
 
+[deps]
+BlockArrays = "8e7c35d0-a365-5155-bbbb-fb81a777f24e"
+FillArrays = "1a297f60-69ca-5386-bcde-b61e274b549b"
+LazyArrays = "5078a376-72f3-5289-bfd5-ec5146d43c02"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+LinearMaps = "7a12625a-238d-50fd-b39a-03d52299707e"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+
 [compat]
 julia = "1"
 
