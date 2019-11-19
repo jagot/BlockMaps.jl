@@ -25,7 +25,8 @@ end
 
 # * Application
 
-function LinearAlgebra.mul!(w::AbstractVector{T}, A::SparseBlockMap{T}, v::AbstractVector{T}, α::Number=true, β::Number=false) where T
+function LinearAlgebra.mul!(w::AbstractVector{T}, A::SparseBlockMap{T}, v::AbstractVector{T},
+                            α::Number=true, β::Number=false) where T
     m,n = size(A)
     size(w,1) == m && size(v,1) == n ||
         throw(DimensionMismatch("Sizes do not agree"))
@@ -33,7 +34,7 @@ function LinearAlgebra.mul!(w::AbstractVector{T}, A::SparseBlockMap{T}, v::Abstr
     bs = blocksizes(A)
     M,N = nblocks(bs)
 
-    if !β
+    if iszero(β)
         w .= false # To clear NaNs
     else
         w .*= β
