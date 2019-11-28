@@ -45,7 +45,7 @@ function LinearAlgebra.mul!(w::AbstractVector{T}, A::SparseBlockMap{T}, v::Abstr
 
     for J = 1:N
         x = view(v, globalrange(bs, (1,J))[2])
-        for nz in nzrange(A.blocks, J)
+        Threads.@threads for nz in nzrange(A.blocks, J)
             I = rows[nz]
             b = vals[nz]
             y = view(w, globalrange(bs, (I,J))[1])
