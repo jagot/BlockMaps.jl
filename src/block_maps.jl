@@ -1,14 +1,14 @@
 block_eltype(b) = eltype(b)
 block_getindex(b, args...) = getindex(b, args...)
 
-struct BlockMap{T, N, B, R<:AbstractArray{B,N}, BS<:AbstractBlockSizes{N}} <: AbstractBlockArray{T,N}
+struct BlockMap{T, N, B, R<:AbstractArray{B,N}, BS<:NTuple{N,AbstractUnitRange{Int}}} <: AbstractBlockArray{T,N}
     blocks::R
-    block_sizes::BS
+    axes::BS
     BlockMap(blocks::R, block_sizes::BS) where {N, B, R<:AbstractArray{B,N}, BS} =
         new{block_eltype(B), N, B, R, BS}(blocks, block_sizes)
 end
 
-@inline blocksizes(block_array::BlockMap) = block_array.block_sizes
+@inline Base.axes(block_array::BlockMap) = block_array.axes
 
 isblockzero(A::BlockMap, args...) = false
 
@@ -39,9 +39,10 @@ end
 
 
 function _check_setblock!(block_arr::BlockMap{T, N}, v, block::NTuple{N, Integer}) where {T,N}
+    bls = blocklengths.(axes(block_arr))
     for i in 1:N
-        if size(v, i) != blocksize(block_arr, i, block[i])
-            throw(DimensionMismatch(string("tried to assign $(size(v)) array to ", blocksize(block_arr, block), " block")))
+        if size(v, i) != bls[i][block[i]]
+            throw(DimensionMismatch(string("tried to assign $(size(v)) array to ", getindex.(bls, block), " block")))
         end
     end
 end
@@ -62,9 +63,9 @@ end
 
 ## structured matrix methods ##
 function Base.replace_in_print_matrix(A::BlockMap, i::Integer, j::Integer, s::AbstractString)
-    bi = global2blockindex(A.block_sizes, (i, j))
-    I,J = bi.I
-    !isblockzero(A,I,J) && !isblockentryzero(A.blocks[I,J], bi.α...)  ? s : Base.replace_with_centered_mark(s)
+    I,J = findblockindex.(axes(A), (i,j))
+    bi,bj = Int.(block.((I,J)))
+    !isblockzero(A,I,J) && !isblockentryzero(A.blocks[bi,bj], blockindex.((I,J))...)  ? s : Base.replace_with_centered_mark(s)
 end
 
 block_spy_block(b) = "■"
@@ -73,9 +74,7 @@ block_spy_block(::LowerTriangular) = "◣"
 block_spy_block(::UpperTriangular) = "◥"
 
 function block_spy(io::IO, A::BlockMap{<:Any,2})
-    bs = blocksizes(A)
-    dm = diff(cumulsizes(bs,1))
-    dn = diff(cumulsizes(bs,2))
+    dm,dn = blocklengths.(axes(A))
     pxl = reduce(gcd, vcat(dm, dn))
 
     for (I,i) in enumerate(dm)

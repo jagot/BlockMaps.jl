@@ -21,3 +21,7 @@ function block_getindex(A::LinearMap{T}, i, j) where T
 
     tmp[i]
 end
+
+# This is necessary type piracy since SparseArrays checks if entry
+# iszero on assignment. Should be upstreamed.
+Base.iszero(::LinearMap) = false

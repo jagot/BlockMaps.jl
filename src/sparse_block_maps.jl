@@ -1,25 +1,25 @@
-const SparseBlockMap{T,B} = BlockMap{T,2,B,<:SparseMatrixCSC{B},<:AbstractBlockSizes{2}}
+const SparseBlockMap{T,B} = BlockMap{T,2,B,<:SparseMatrixCSC{B},<:NTuple{2,<:AbstractUnitRange{Int}}}
 
 @inline SparseBlockMap(::Type{B}, block_sizes::Vararg{AbstractVector{Int}, 2}) where B =
-    SparseBlockMap(B, BlockSizes(block_sizes...))
+    SparseBlockMap(B, map(blockedrange, block_sizes))
 
-function isblockzero(A::SparseBlockMap, I, J)
+function isblockzero(A::SparseBlockMap, I::Integer, J::Integer)
     colnz = nzrange(A.blocks, J)
     isempty(colnz) || I ∉ rowvals(A.blocks)[colnz]
 end
+isblockzero(A::SparseBlockMap, I::BlockIndex, J::BlockIndex) =
+    isblockzero(A, Int(block(I)), Int(block(J)))
 
 function Base.getindex(A::SparseBlockMap{T}, i::Integer, j::Integer) where T
-    bi = global2blockindex(A.block_sizes, (i, j))
-    I,J = bi.I
+    I,J = findblockindex.(axes(A), (i,j))
     isblockzero(A,I,J) && return zero(T)
-    I,J = bi.I
-    i,j = bi.α
-    block_getindex(A.blocks[I,J], i, j)
+    bi,bj = Int.(block.((I,J)))
+    i,j = blockindex.((I,J))
+    block_getindex(A.blocks[bi,bj], i, j)
 end
 
-function SparseBlockMap(::Type{B}, block_sizes::BlockSizes{2}) where B
-    n_blocks = nblocks(block_sizes)
-    blocks = spzeros(B, n_blocks...)
+function SparseBlockMap(::Type{B}, block_sizes::NTuple{2,<:AbstractUnitRange{Int}}) where B
+    blocks = spzeros(B, length.(block_sizes)...)
     BlockMap(blocks, block_sizes)
 end
 
@@ -31,8 +31,8 @@ function LinearAlgebra.mul!(w::AbstractVector{T}, A::SparseBlockMap{T}, v::Abstr
     size(w,1) == m && size(v,1) == n ||
         throw(DimensionMismatch("Sizes do not agree"))
 
-    bs = blocksizes(A)
-    M,N = nblocks(bs)
+    ax = axes(A)
+    M,N = length.(ax)
 
     if iszero(β)
         w .= false # To clear NaNs
@@ -44,11 +44,11 @@ function LinearAlgebra.mul!(w::AbstractVector{T}, A::SparseBlockMap{T}, v::Abstr
     vals = nonzeros(A.blocks)
 
     for J = 1:N
-        x = view(v, globalrange(bs, (1,J))[2])
+        x = view(v, getindex.(ax, (1,J))[2])
         Threads.@threads for nz in nzrange(A.blocks, J)
             I = rows[nz]
             b = vals[nz]
-            y = view(w, globalrange(bs, (I,J))[1])
+            y = view(w, getindex.(ax, (I,J))[1])
             mul!(y, b, x, α, true)
         end
     end
